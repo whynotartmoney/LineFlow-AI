@@ -1,0 +1,7 @@
+{
+  "name": "LineFlow AI - One-Line Art Creator",
+  "description": "Transform your photos into elegant single-line drawings using AI. Customize styles with neon, metallic, and glass effects, and watch the creative process unfold with a real-time drawing animation.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
