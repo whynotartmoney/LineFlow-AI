@@ -9,31 +9,26 @@ export async function generateOneLineArt(base64Image: string, variant: number = 
   const data = base64Image.split(',')[1];
   const mimeType = base64Image.split(';')[0].split(':')[1];
 
-  // Map 1-10 scale to descriptive complexity levels
-  const complexityMap: { [key: number]: string } = {
-    1: "Ultra-Minimal: Use the absolute bare minimum points. A single primitive stroke suggesting only the outer silhouette.",
-    2: "Extremely Simple: Minimal curves, focusing only on the most iconic shape of the subject.",
-    3: "Simple: Basic outlines with very few internal details.",
-    4: "Minimalist: Smooth flow, capturing the core structure with light abstraction.",
-    5: "Balanced Abstraction: Clear representation with smooth, flowing lines and some key internal features.",
-    6: "Moderate Detail: More descriptive curves that define the subject's form more clearly.",
-    7: "Artistic Detail: Capturing significant contours and sub-shapes while remaining a continuous line.",
-    8: "High Detail: Intricate pathing that represents textures and complex intersections of the subject.",
-    9: "Very High Detail: Detailed tracing of almost all visible edges and features.",
-    10: "Maximum Fidelity: The most complex path possible, tracing the subject with extreme precision to look exactly like the original photo."
-  };
+  // Refined 1-10 complexity map focusing on artistic detail and path length
+  const complexityPrompt = `
+    Transform the subject of the image into a SINGLE, UNINTERRUPTED continuous line drawing.
+    
+    COMPLEXITY SCALE (Level ${variant} of 10):
+    - Level 1-2: Ultra-minimalist. Focus only on the outermost silhouette. Very short path.
+    - Level 3-4: Minimalist sketch. Outline plus 1 or 2 essential internal features.
+    - Level 5-6: Artistic interpretation. Fluid curves capturing the primary form and secondary features (like eyes or major muscle lines).
+    - Level 7-8: Detailed drawing. Complex winding lines that begin to describe volume and texture.
+    - Level 9-10: Hyper-detailed masterpiece. Use intricate zig-zags, loops, and varying path density to simulate shading, fine textures, and every subtle detail of the original subject. The resulting path should be very long and wind through the entire form.
 
-  const prompt = `
-    Analyze the uploaded image and convert its main subject into a SINGLE continuous line drawing (one-line art).
+    YOUR GOAL:
+    At level ${variant}, generate a path that is ${variant <= 3 ? 'clean and iconic' : variant <= 7 ? 'fluid and expressive' : 'intricate and representational'}.
     
-    COMPLEXITY LEVEL: ${complexityMap[variant] || complexityMap[5]}
-    
-    CRITICAL INSTRUCTIONS:
-    1. Output ONLY a valid SVG path 'd' attribute value.
-    2. The path MUST be a single continuous stroke (one 'M' command followed by curves/lines).
-    3. Use a normalized 0-1000 scale for coordinates.
-    4. Do not include any text, headers, or other SVG tags. Just the string for the 'd' property.
-    5. Ensure the line is fluid and connected.
+    CRITICAL CONSTRAINTS:
+    1. Output ONLY the 'd' attribute string of a single SVG path.
+    2. Start with 'M', followed by a sequence of 'C', 'L', or 'Q' commands.
+    3. The path MUST NEVER break. No 'M' commands after the first one.
+    4. Coordinate space: 0 to 1000.
+    5. Do not return any XML tags, JSON, or text besides the path data.
   `;
 
   const response = await ai.models.generateContent({
@@ -41,23 +36,31 @@ export async function generateOneLineArt(base64Image: string, variant: number = 
     contents: {
       parts: [
         { inlineData: { data, mimeType } },
-        { text: prompt }
+        { text: complexityPrompt }
       ]
     },
     config: {
-      temperature: 0.5,
-      topP: 0.9,
+      temperature: 0.4, // Lower temperature for more stable path structures
+      topP: 0.8,
     }
   });
 
-  const path = response.text?.trim().replace(/['"`]/g, '') || "";
+  let path = response.text?.trim() || "";
   
-  if (!path.toLowerCase().includes('m')) {
-      return "";
+  // Strip potential wrapping quotes or common LLM markdown
+  path = path.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/i, "");
+  path = path.replace(/^d=["'](.*)["']$/i, "$1");
+  path = path.replace(/['"`]/g, "");
+
+  if (!path.toLowerCase().startsWith('m')) {
+      // Fallback: try to find the first 'M'
+      const mIndex = path.toUpperCase().indexOf('M');
+      if (mIndex !== -1) {
+          path = path.substring(mIndex);
+      } else {
+          return "";
+      }
   }
   
-  const match = path.match(/d="([^"]+)"/i);
-  if (match) return match[1];
-
   return path;
 }
