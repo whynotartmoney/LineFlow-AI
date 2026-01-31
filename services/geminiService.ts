@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -9,58 +9,64 @@ export async function generateOneLineArt(base64Image: string, variant: number = 
   const data = base64Image.split(',')[1];
   const mimeType = base64Image.split(';')[0].split(':')[1];
 
-  // Refined 1-10 complexity map focusing on artistic detail and path length
+  /**
+   * Complexity Mapping:
+   * 1-2: Silhouette (minimalist boundary).
+   * 3-5: Expressive (major features).
+   * 6-8: Detailed (textures and volume).
+   * 9-10: Masterpiece (scribble-art, dense winding, shading simulation).
+   */
   const complexityPrompt = `
-    Transform the subject of the image into a SINGLE, UNINTERRUPTED continuous line drawing.
+    TASK: Convert the main subject of the provided image into ONE SINGLE CONTINUOUS SVG PATH.
     
-    COMPLEXITY SCALE (Level ${variant} of 10):
-    - Level 1-2: Ultra-minimalist. Focus only on the outermost silhouette. Very short path.
-    - Level 3-4: Minimalist sketch. Outline plus 1 or 2 essential internal features.
-    - Level 5-6: Artistic interpretation. Fluid curves capturing the primary form and secondary features (like eyes or major muscle lines).
-    - Level 7-8: Detailed drawing. Complex winding lines that begin to describe volume and texture.
-    - Level 9-10: Hyper-detailed masterpiece. Use intricate zig-zags, loops, and varying path density to simulate shading, fine textures, and every subtle detail of the original subject. The resulting path should be very long and wind through the entire form.
+    ARTISTIC COMPLEXITY: Level ${variant} out of 10.
+    
+    LEVEL SPECIFIC RULES:
+    - Level 1: Extreme minimalism. Only the most basic outer silhouette. Use very few points.
+    - Level 5: Balanced artistic line. Captures the silhouette and the most important internal features with flowing curves.
+    - Level 10: Hyper-detailed masterpiece. Use an extremely long, intricate path that winds back and forth. Use dense scribbling, loops, and micro-zigzags to simulate shading, fine textures, and every subtle detail of the original subject. It should look like a complex professional ink drawing made with one continuous stroke.
 
-    YOUR GOAL:
-    At level ${variant}, generate a path that is ${variant <= 3 ? 'clean and iconic' : variant <= 7 ? 'fluid and expressive' : 'intricate and representational'}.
-    
-    CRITICAL CONSTRAINTS:
-    1. Output ONLY the 'd' attribute string of a single SVG path.
-    2. Start with 'M', followed by a sequence of 'C', 'L', or 'Q' commands.
-    3. The path MUST NEVER break. No 'M' commands after the first one.
-    4. Coordinate space: 0 to 1000.
-    5. Do not return any XML tags, JSON, or text besides the path data.
+    TECHNICAL CONSTRAINTS:
+    1. Output ONLY the raw 'd' attribute string (no tags, no quotes).
+    2. The path MUST be 100% continuous. Use 'M' only once at the beginning.
+    3. Coordinate system: 0 to 1000.
+    4. Provide no explanation or markdown. Just the path data.
   `;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: {
-      parts: [
-        { inlineData: { data, mimeType } },
-        { text: complexityPrompt }
-      ]
-    },
-    config: {
-      temperature: 0.4, // Lower temperature for more stable path structures
-      topP: 0.8,
-    }
-  });
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: {
+        parts: [
+          { inlineData: { data, mimeType } },
+          { text: complexityPrompt }
+        ]
+      },
+      config: {
+        temperature: 0.2, // Higher predictability for clean paths
+        topP: 0.8,
+      }
+    });
 
-  let path = response.text?.trim() || "";
-  
-  // Strip potential wrapping quotes or common LLM markdown
-  path = path.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/i, "");
-  path = path.replace(/^d=["'](.*)["']$/i, "$1");
-  path = path.replace(/['"`]/g, "");
+    let path = response.text?.trim() || "";
+    
+    // Cleanup for LLM output variance
+    path = path.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/i, "");
+    path = path.replace(/^d=["'](.*)["']$/i, "$1");
+    path = path.replace(/['"`]/g, "");
 
-  if (!path.toLowerCase().startsWith('m')) {
-      // Fallback: try to find the first 'M'
+    if (!path.toLowerCase().startsWith('m')) {
       const mIndex = path.toUpperCase().indexOf('M');
       if (mIndex !== -1) {
-          path = path.substring(mIndex);
+        path = path.substring(mIndex);
       } else {
-          return "";
+        return "";
       }
+    }
+    
+    return path;
+  } catch (err) {
+    console.error("Gemini API Error:", err);
+    throw err;
   }
-  
-  return path;
 }

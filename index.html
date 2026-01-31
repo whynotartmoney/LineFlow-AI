@@ -4,15 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LineFlow AI</title>
+    <title>LineFlow Studio Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:ital,wght@0,700;1,700;1,900&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
+            background-color: #f5f5f5;
         }
         .font-serif {
             font-family: 'Playfair Display', serif;
@@ -21,12 +21,27 @@
           max-width: 100%;
           height: auto;
         }
-        @keyframes flow {
-          0% { stroke-dashoffset: 1000; }
-          100% { stroke-dashoffset: 0; }
-        }
         .drawing-path {
-          transition: stroke-dashoffset 3s ease-in-out;
+          transition: stroke-dashoffset 3s ease-in-out, stroke 0.4s ease, filter 0.4s ease;
+        }
+        /* Custom scrollbar for pro look */
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          background: #4f46e5;
+          cursor: pointer;
+          border-radius: 50%;
+          border: 2px solid white;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
     </style>
 <script type="importmap">
